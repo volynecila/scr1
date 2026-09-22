@@ -102,6 +102,8 @@
 #define INTERRUPT_HANDLER j other_exception /* No interrupts should occur */
 
 #define RVTEST_CODE_BEGIN                                               \
+MSG_TRAP:                                                               \
+        .string "Breakpoint Detected";                                  \
         .section .text.init;                                            \
         .org 0xC0, 0x00;                                                \
         .balign  64;                                                    \
@@ -124,6 +126,15 @@ trap_vector:                                                            \
 1:      csrr a4, mcause;                                                \
         bgez a4, handle_exception;                                      \
         INTERRUPT_HANDLER;                                              \
+handle_break:                                                           \
+        lui a6, 0xf0000;                                                \
+        la a7, MSG_TRAP;                                                \
+next_iter:                                                              \
+        lb a5, 0(a7);                                                   \
+        beq a5, x0, sc_exit;                                            \
+        sw a5, 0(a6);                                                   \
+        addi a7, a7, 1;                                                 \
+        jal x0, next_iter;                                              \
 handle_exception:                                                       \
         /* we don't know how to handle whatever the exception was */    \
 other_exception:                                                        \
@@ -131,6 +142,7 @@ other_exception:                                                        \
         li   a0, 0x1;                                                   \
 _report:                                                                \
         j sc_exit;                                                      \
+        .org 0xA00, 0x00;                                               \
         .balign  64;                                                    \
         .globl _start;                                                  \
 _start:                                                                 \
